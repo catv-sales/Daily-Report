@@ -276,7 +276,12 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
     <h3 id="modal-ttl">行動を記録</h3>
     <div class="fr">
       <label>時間帯 <span style="color:var(--text);font-size:11px;">※入力必須</span></label>
-      <select id="f-time"><option value="">選択してください</option></select>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;">
+        <select id="f-time-start" onchange="onTimeChange()"><option value="">開始</option></select>
+        <span style="font-size:13px;color:var(--muted);">〜</span>
+        <select id="f-time-end" onchange="onTimeChange()"><option value="">終了</option></select>
+      </div>
+      <div id="time-err" style="display:none;font-size:11px;color:#E24B4A;margin-top:3px;">終了時間は開始時間より後にしてください</div>
     </div>
     <div class="fr">
       <label>エリア <span style="color:var(--text);font-size:11px;">※入力必須</span></label>
@@ -328,7 +333,7 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
       <div class="result-grid" id="result-grid"></div>
     </div>
     <!-- でんき状況セクション -->
-    <div id="fr-denki-section" style="display:none; background:#F0F7FF; border-radius:8px; padding:12px; margin-bottom:12px;">
+    <div id="fr-denki-section" style="background:#F0F7FF; border-radius:8px; padding:12px; margin-bottom:12px;">
       <div style="font-size:13px; font-weight:600; color:#1558A8; margin-bottom:10px;">&#9889; でんき状況</div>
       <div class="fr" style="margin-bottom:10px;">
         <label>&#9312; 電力会社</label>
@@ -502,12 +507,31 @@ function initStaff() {
   sel.value = STAFF[0];
 }
 function initTimeSelect() {
-  const sel = document.getElementById('f-time');
-  HOURS.forEach(h => {
-    const o = document.createElement('option');
-    o.value = h; o.textContent = `${h}:00 ～ ${h+1}:00`;
-    sel.appendChild(o);
+  const allTimes = [];
+  HOURS.forEach(h => { allTimes.push(h*60); allTimes.push(h*60+30); });
+  allTimes.push(19*60+30); allTimes.push(20*60);
+  function fmt(m){ return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`; }
+  ['f-time-start','f-time-end'].forEach(id => {
+    const sel = document.getElementById(id);
+    allTimes.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = fmt(m);
+      sel.appendChild(o);
+    });
   });
+}
+function onTimeChange() {
+  const s = parseInt(document.getElementById('f-time-start').value);
+  const e = parseInt(document.getElementById('f-time-end').value);
+  const err = document.getElementById('time-err');
+  if (s && e && e <= s) { err.style.display='block'; } else { err.style.display='none'; }
+}
+function getTimeLabel() {
+  const s = document.getElementById('f-time-start').value;
+  const e = document.getElementById('f-time-end').value;
+  if (!s || !e) return '';
+  function fmt(m){ return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`; }
+  return `${fmt(parseInt(s))}〜${fmt(parseInt(e))}`;
 }
 function initResultGrid() {
   const wrap = document.getElementById('result-grid');
@@ -518,11 +542,7 @@ function initResultGrid() {
     lbl.appendChild(cb);
     lbl.appendChild(document.createTextNode(' ' + r));
     wrap.appendChild(lbl);
-    if (r === 'でんき') {
-      cb.addEventListener('change', function () {
-        document.getElementById('fr-denki-section').style.display = this.checked ? 'block' : 'none';
-      });
-    }
+
   });
 }
 function getChecked() {
@@ -536,8 +556,7 @@ function setChecked(arr) {
     const el = document.querySelector(`#result-grid input[value="${r}"]`);
     if (el) el.checked = arr && arr.includes(r);
   });
-  const hasDenki = arr && arr.includes('でんき');
-  document.getElementById('fr-denki-section').style.display = hasDenki ? 'block' : 'none';
+
 }
 
 // ── タイムライン描画 ──
@@ -548,13 +567,14 @@ function renderTimeline() {
 
   let html = '';
   HOURS.forEach(h => {
-    const key = gk(staff, date, h);
+    const key = gk(staff, date, h*60);
     const e = entries[encodeKey(key)] || entries[key] || {};
     const s = e.status || 0;
     const rs = e.results && e.results.length ? e.results.join('・') : '';
     const kubunShort = (e.kubun || '').replace('アップセル', 'UP').replace('(アポ有)', '有').replace('(アポ無・直訪)', '無');
+    const timeDisp = e.timeLabel || `${h}:00`;
     html += `<tr>
-      <td class="td-time">${h}:00</td>
+      <td class="td-time" style="font-size:10px;">${timeDisp}</td>
       <td class="td-cell" onclick="openModal('${key}')"><div class="cell-in s${s}">${e.area || ''}</div></td>
       <td class="td-cell" onclick="openModal('${key}')"><div class="cell-in s${s}" style="font-size:10px">${kubunShort}</div></td>
       <td class="td-cell" onclick="openModal('${key}')"><div class="cell-in s${s}">${e.num || ''}</div></td>
@@ -573,7 +593,11 @@ function openModal(rawKey) {
   const parts = rawKey ? rawKey.split('__') : [];
 
   document.getElementById('modal-ttl').textContent = key && e.status ? '記録を編集' : '行動を記録';
-  if (parts[2]) document.getElementById('f-time').value = parts[2];
+  if (e.timeStart) document.getElementById('f-time-start').value = e.timeStart;
+  else document.getElementById('f-time-start').value = '';
+  if (e.timeEnd) document.getElementById('f-time-end').value = e.timeEnd;
+  else document.getElementById('f-time-end').value = '';
+  document.getElementById('time-err').style.display = 'none';
   document.getElementById('f-area').value = e.area || '';
   document.getElementById('f-kubun').value = e.kubun || '';
   document.getElementById('f-num').value = e.num || '';
@@ -596,21 +620,26 @@ function closeModal() {
 function saveEntry() {
   const staff = document.getElementById('sel-staff').value;
   const date = document.getElementById('sel-date').value;
-  const hour = parseInt(document.getElementById('f-time').value);
   if (!staff || !date) { toast('スタッフと日付を選択してください'); return; }
-  const fTime = document.getElementById('f-time').value;
+  const fTimeStart = document.getElementById('f-time-start').value;
+  const fTimeEnd = document.getElementById('f-time-end').value;
   const fArea = document.getElementById('f-area').value;
   const fKubun = document.getElementById('f-kubun').value;
   const fStatus = document.getElementById('f-status').value;
-  if (!fTime) { toast('時間帯を選択してください'); return; }
+  if (!fTimeStart || !fTimeEnd) { toast('開始・終了時間を選択してください'); return; }
+  if (parseInt(fTimeEnd) <= parseInt(fTimeStart)) { toast('終了時間は開始時間より後にしてください'); return; }
   if (!fArea) { toast('エリアを選択してください'); return; }
   if (!fKubun) { toast('区分を選択してください'); return; }
   if (!fStatus) { toast('ステータスを選択してください'); return; }
 
-  const rawKey = gk(staff, date, hour);
+  const timeLabel = getTimeLabel();
+  const rawKey = gk(staff, date, fTimeStart);
   const eKey = encodeKey(rawKey);
   const data = {
     status:   parseInt(document.getElementById('f-status').value),
+    timeStart: fTimeStart,
+    timeEnd:   fTimeEnd,
+    timeLabel: timeLabel,
     area:     document.getElementById('f-area').value,
     kubun:    document.getElementById('f-kubun').value,
     num:      document.getElementById('f-num').value,
@@ -807,7 +836,7 @@ function downloadExcel(type) {
   const detail = [['日付','スタッフ','時間','エリア','区分','番号','ステータス','結果','電力会社','NG理由','再訪予定日','備考']];
   list.sort((a,b) => (a.date+a.staff) < (b.date+b.staff) ? -1 : 1).forEach(e => {
     detail.push([
-      e.date, e.staff, e.hour ? `${e.hour}:00` : '',
+      e.date, e.staff, e.timeLabel || (e.hour ? `${e.hour}:00` : ''),
       e.area||'', e.kubun||'', e.num||'',
       STATUS_LABEL[e.status]||'',
       (e.results||[]).join('・'),
@@ -823,13 +852,20 @@ function downloadExcel(type) {
   const byStaff = {};
   STAFF.forEach(s => { byStaff[s] = []; });
   list.forEach(e => { if (e.staff && byStaff[e.staff]) byStaff[e.staff].push(e); });
-  const summary = [['スタッフ','総行動数','成約【対応完了】','一部成約【再訪予定】','今回成約なし【再訪予定】','成約なし【お断り】']];
+  // ヘッダー：基本列 + サービス列
+  const summaryHeader = ['スタッフ','総行動数','成約【対応完了】','一部成約【再訪予定】','今回成約なし【再訪予定】','成約なし【お断り】', ...RESULTS];
+  const summary = [summaryHeader];
   STAFF.forEach(name => {
     const { c, total } = calcStats(byStaff[name]);
-    summary.push([name, total, c[1]||0, c[2]||0, c[3]||0, c[4]||0]);
+    // サービス別獲得数（resultsに含まれる件数）
+    const svcCounts = RESULTS.map(r =>
+      byStaff[name].filter(e => e.results && e.results.includes(r)).length
+    );
+    summary.push([name, total, c[1]||0, c[2]||0, c[3]||0, c[4]||0, ...svcCounts]);
   });
   const ws2 = XLSX.utils.aoa_to_sheet(summary);
-  ws2['!cols'] = [12,10,16,18,12].map(w=>({wch:w}));
+  const ws2Cols = [12,10,16,18,20,16, ...RESULTS.map(()=>10)].map(w=>({wch:w}));
+  ws2['!cols'] = ws2Cols;
   XLSX.utils.book_append_sheet(wb, ws2, 'スタッフ別集計');
 
   // ── シート3: 結果集計 ──
