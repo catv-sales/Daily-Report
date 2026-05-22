@@ -31,13 +31,14 @@
 <script>
 // ▼▼▼ ここにFirebaseの設定を貼り付けてください ▼▼▼
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  databaseURL:       "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "YOUR_PROJECT",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey:            "AIzaSyDLnko2V0HOsC2ZMz_LCDWoFIIDvKDHTEc",
+  authDomain:        "daily-report-82d15.firebaseapp.com",
+  databaseURL:       "https://daily-report-82d15-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "daily-report-82d15",
+  storageBucket:     "daily-report-82d15.firebasestorage.app",
+  messagingSenderId: "861232709551",
+  appId:             "1:861232709551:web:178ce1d15b361747c1395a",
+  measurementId:     "G-T7Y3LE5MG2"
 };
 // ▲▲▲ ここまで ▲▲▲
 
@@ -205,11 +206,9 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
         <button class="btn primary" onclick="openModal(null)">＋ 追加</button>
       </div>
       <div class="legend">
-        <span><span class="ldot" style="background:var(--s1-bg)"></span>訪問中</span>
-        <span><span class="ldot" style="background:var(--s2-bg)"></span>成約済</span>
-        <span><span class="ldot" style="background:var(--s3-bg)"></span>提案中</span>
-        <span><span class="ldot" style="background:var(--s4-bg)"></span>お断り</span>
-        <span><span class="ldot" style="background:var(--s5-bg)"></span>その他</span>
+        <span><span class="ldot" style="background:var(--s2-bg)"></span>対応完了(成約)</span>
+        <span><span class="ldot" style="background:var(--s4-bg)"></span>対応完了(お断り)</span>
+        <span><span class="ldot" style="background:var(--s3-bg)"></span>再訪問予定</span>
       </div>
       <div class="tl-card">
         <table class="tl-table">
@@ -303,11 +302,9 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
     <div class="fr">
       <label>ステータス</label>
       <select id="f-status">
-        <option value="1">訪問中</option>
-        <option value="2">成約済</option>
-        <option value="3">提案中</option>
-        <option value="4">お断り</option>
-        <option value="5">その他</option>
+        <option value="1">対応完了(成約)</option>
+        <option value="2">対応完了(お断り)</option>
+        <option value="3">再訪問予定</option>
       </select>
     </div>
     <div class="fr">
@@ -393,7 +390,7 @@ const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
 const STAFF = [
   '大塚','落合','阿久津','黒子','松本','野口','中新井','金井'
 ];
-const STATUS_LABEL = {0:'未入力',1:'訪問中',2:'成約済',3:'提案中',4:'お断り',5:'その他'};
+const STATUS_LABEL = {0:'未入力',1:'対応完了(成約)',2:'対応完了(お断り)',3:'再訪問予定'};
 const STATUS_COLOR = {1:'#639922',2:'#E24B4A',3:'#EF9F27'};
 const RESULTS = ['TV','NET','TEL','でんき','スマホ','カメラ','IPスティック','あんしん','NHK','速度UP'];
 
