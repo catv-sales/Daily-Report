@@ -143,9 +143,11 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
 .fr select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
 .fr textarea { height: 60px; resize: none; }
 .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.result-grid label { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: #F7F6F3; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; border: 0.5px solid transparent; }
+.result-grid label { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: #F7F6F3; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; border: 0.5px solid transparent; min-height:40px; box-sizing:border-box; }
 .result-grid label:has(input:checked) { background: var(--accent-lt); border-color: var(--accent); color: var(--accent); font-weight: 500; }
 .result-grid input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+.result-select { display:flex;align-items:center;width:100%;padding:8px 28px 8px 10px;font-size:13px;font-family:inherit;color:var(--text);background-color:#F7F6F3 !important;border:0.5px solid transparent !important;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;-webkit-appearance:none !important;appearance:none !important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;background-repeat:no-repeat !important;background-position:right 10px center !important;min-height:40px;box-sizing:border-box;outline:none; }
+.result-select.selected { background-color:var(--accent-lt);border-color:var(--accent);color:var(--accent);font-weight:500;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%231558A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); }
 .modal-footer { display: flex; gap: 8px; padding-top: 6px; }
 .modal-footer .btn { flex: 1; padding: 12px; font-size: 14px; }
 .del-btn { background: #FDE0DF; color: #791F1F; border-color: #F7C1C1; }
@@ -383,8 +385,27 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
       <input type="date" id="f-revisit">
     </div>
     <div class="fr">
-      <label>結果（複数選択可）</label>
+      <label>結果</label>
       <div class="result-grid" id="result-grid"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+        <select id="f-tv" class="result-select" onchange="updateSelectStyle(this)">
+          <option value="">TV：なし</option>
+          <option>TV(独力)</option>
+          <option>TV(他力)</option>
+          <option>TV(再送信→多ch)</option>
+        </select>
+        <select id="f-net" class="result-select" onchange="updateSelectStyle(this)">
+          <option value="">NET：なし</option>
+          <option>NET(独力)</option>
+          <option>NET(他力)</option>
+          <option>NET(速度UP)</option>
+        </select>
+        <select id="f-tel" class="result-select" onchange="updateSelectStyle(this)">
+          <option value="">TEL：なし</option>
+          <option>TEL(CP)</option>
+          <option>TEL(CL)</option>
+        </select>
+      </div>
     </div>
     <!-- でんき状況セクション -->
     <div id="fr-denki-section" style="background:#F0F7FF; border-radius:8px; padding:12px; margin-bottom:12px;">
@@ -477,7 +498,16 @@ const STAFF = [
 ];
 const STATUS_LABEL = {0:'未入力',1:'成約【対応完了】',2:'一部成約【再訪予定】',3:'今回成約なし【再訪予定】',4:'成約なし【NG】'};
 const STATUS_COLOR = {1:'#639922',2:'#378ADD',3:'#EF9F27',4:'#E24B4A'};
-const RESULTS = ['でんき','スマホ','カメラ','IPスティック','あんしん','NHK','NET(真水)','NET(速度UP)','TV(真水)','TV(再送信→多ch)','TEL','その他(備考に記入)'];
+const RESULTS = ['でんき','スマホ','カメラ','IPスティック','あんしん','NHK','その他(備考に記入)'];
+const TV_OPTIONS  = ['','TV(独力)','TV(他力)','TV(再送信→多ch)'];
+const NET_OPTIONS = ['','NET(独力)','NET(他力)','NET(速度UP)'];
+const TEL_OPTIONS = ['','TEL(CP)','TEL(CL)'];
+const ALL_SERVICES = [
+  'でんき','スマホ','カメラ','IPスティック','あんしん','NHK','その他(備考に記入)',
+  'TV(独力)','TV(他力)','TV(再送信→多ch)',
+  'NET(独力)','NET(他力)','NET(速度UP)',
+  'TEL(CP)','TEL(CL)'
+];
 const TEAMS = [
   { name: '茨城チーム', members: ['大塚','落合','黒子','阿久津'] },
   { name: '栃木・群馬チーム', members: ['金井','中新井','野口'] },
@@ -617,16 +647,31 @@ function initResultGrid() {
   });
 }
 function getChecked() {
-  return RESULTS.filter(r => {
+  const checked = RESULTS.filter(r => {
     const el = document.querySelector(`#result-grid input[value="${r}"]`);
     return el && el.checked;
   });
+  const tv  = document.getElementById('f-tv').value;
+  const net = document.getElementById('f-net').value;
+  const tel = document.getElementById('f-tel').value;
+  if (tv)  checked.push(tv);
+  if (net) checked.push(net);
+  if (tel) checked.push(tel);
+  return checked;
 }
 function setChecked(arr) {
   RESULTS.forEach(r => {
     const el = document.querySelector(`#result-grid input[value="${r}"]`);
     if (el) el.checked = arr && arr.includes(r);
   });
+  // TV/NET/TELのプルダウンを復元
+  const tvVal  = arr ? (arr.find(v => v && v.startsWith('TV('))  || '') : '';
+  const netVal = arr ? (arr.find(v => v && v.startsWith('NET(')) || '') : '';
+  const telVal = arr ? (arr.find(v => v && v.startsWith('TEL(')) || '') : '';
+  document.getElementById('f-tv').value  = tvVal;
+  document.getElementById('f-net').value = netVal;
+  document.getElementById('f-tel').value = telVal;
+  updateAllSelectStyles();
 
 }
 
@@ -936,12 +981,12 @@ function renderStaffTable(list) {
     const memberData = team.members.map(name => {
       const ml = byStaff[name] || [];
       const { c, total } = calcStats(ml);
-      const svc = RESULTS.map(r => ml.filter(e => e.results && e.results.includes(r)).length);
+      const svc = ALL_SERVICES.map(r => ml.filter(e => e.results && e.results.includes(r)).length);
       return { name, c, total, svc };
     });
     const teamAll = team.members.flatMap(n => byStaff[n] || []);
     const { c: tc, total: tt } = calcStats(teamAll);
-    const tSvc = RESULTS.map(r => teamAll.filter(e => e.results && e.results.includes(r)).length);
+    const tSvc = ALL_SERVICES.map(r => teamAll.filter(e => e.results && e.results.includes(r)).length);
 
     // 全データを1つのテーブルで構成（左固定列＋右スクロール列）
     const rows = [...memberData, { name:'合計', c:tc, total:tt, svc:tSvc, isTotal:true }];
@@ -956,7 +1001,7 @@ function renderStaffTable(list) {
     [1,2,3,4].forEach(s => {
       h += `<th style="min-width:52px;color:${STATUS_COLORS_MAP[s]};white-space:nowrap">${SHORT_LABEL[s]}</th>`;
     });
-    RESULTS.forEach(r => h += `<th style="min-width:46px;font-size:10px;white-space:nowrap">${r}</th>`);
+    ALL_SERVICES.forEach(r => h += `<th style="min-width:46px;font-size:10px;white-space:nowrap">${r}</th>`);
     h += '</tr></thead><tbody>';
 
     rows.forEach(({ name, c, total, svc, isTotal }) => {
@@ -1017,12 +1062,12 @@ function downloadExcel(type) {
   const byStaff2 = {};
   STAFF.forEach(s => { byStaff2[s] = []; });
   list.forEach(e => { if (e.staff && byStaff2[e.staff]) byStaff2[e.staff].push(e); });
-  const summaryHeader = ['チーム','スタッフ','総行動数','成約【対応完了】','一部成約【再訪予定】','今回成約なし【再訪予定】','成約なし【NG】', ...RESULTS];
+  const summaryHeader = ['チーム','スタッフ','総行動数','成約【対応完了】','一部成約【再訪予定】','今回成約なし【再訪予定】','成約なし【NG】', ...ALL_SERVICES];
   const summary = [summaryHeader];
   TEAMS.forEach(team => {
     team.members.forEach(name => {
       const { c, total } = calcStats(byStaff2[name] || []);
-      const svcCounts = RESULTS.map(r =>
+      const svcCounts = ALL_SERVICES.map(r =>
         (byStaff2[name] || []).filter(e => e.results && e.results.includes(r)).length
       );
       summary.push([team.name, name, total, c[1]||0, c[2]||0, c[3]||0, c[4]||0, ...svcCounts]);
@@ -1030,11 +1075,11 @@ function downloadExcel(type) {
     // チーム合計
     const teamAll = team.members.flatMap(n => byStaff2[n] || []);
     const { c: tc, total: tt } = calcStats(teamAll);
-    const tSvc = RESULTS.map(r => teamAll.filter(e => e.results && e.results.includes(r)).length);
+    const tSvc = ALL_SERVICES.map(r => teamAll.filter(e => e.results && e.results.includes(r)).length);
     summary.push([team.name+'合計', '', tt, tc[1]||0, tc[2]||0, tc[3]||0, tc[4]||0, ...tSvc]);
   });
   const ws2 = XLSX.utils.aoa_to_sheet(summary);
-  const ws2Cols = [12,12,10,16,18,20,16, ...RESULTS.map(()=>10)].map(w=>({wch:w}));
+  const ws2Cols = [12,12,10,16,18,20,16, ...ALL_SERVICES.map(()=>10)].map(w=>({wch:w}));
   ws2['!cols'] = ws2Cols;
   XLSX.utils.book_append_sheet(wb, ws2, 'スタッフ別集計');
 
@@ -1049,6 +1094,17 @@ function downloadExcel(type) {
   const filename = `営業日報_${label}.xlsx`;
   XLSX.writeFile(wb, filename);
   toast(`${filename} をダウンロードしました`);
+}
+
+// ── セレクトの選択状態スタイル更新 ──
+function updateSelectStyle(el) {
+  el.classList.toggle('selected', el.value !== '');
+}
+function updateAllSelectStyles() {
+  ['f-tv','f-net','f-tel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) updateSelectStyle(el);
+  });
 }
 
 // ── ステータス変更時の再訪予定日表示制御 ──
