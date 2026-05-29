@@ -367,7 +367,7 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
       </select>
     </div>
     <div class="fr">
-      <label>案件番号 / 顧客番号 <span style="color:var(--muted);font-size:11px;">※アルファベット(I-)は入力無しでOK</span></label>
+      <label>案件番号 / 顧客番号 <span style="color:var(--muted);font-size:11px;">※アルファベット(I-)は入力無しでOK<br>番号が無い場合(新規等)は備考欄にお客様名を記入してください</span></label>
       <input type="number" id="f-num" placeholder="例:123456" inputmode="numeric" pattern="[0-9]*" min="0" step="1" oninput="this.value=this.value.replace(/[^0-9]/g,'')" >
     </div>
     <div class="fr">
