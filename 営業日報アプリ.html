@@ -685,7 +685,7 @@ function renderTimeline() {
   const dayEntries = [];
   Object.keys(entries).forEach(k => {
     const e = entries[k];
-    if (e && e.staff === staff && e.date === date && e.timeStart) {
+    if (e && !e.deleted && e.staff === staff && e.date === date && e.timeStart) {
       dayEntries.push({ key: k, e });
     }
   });
@@ -819,10 +819,13 @@ function deleteEntry() {
   if (!editKey) return;
   if (!confirm('この記録を削除しますか？')) return;
   const eKey = encodeKey(editKey);
+  // タイムラインからは消す
   delete entries[eKey];
   closeModal();
   renderTimeline();
-  saveToFirebase(editKey, null);
+  // Firebaseには削除フラグを立てて残す（GASがスプシをクリアできるよう）
+  const deletedData = { deleted: true, ts: new Date().toISOString() };
+  saveToFirebase(editKey, deletedData);
   if (USE_LOCAL) saveLocal();
   toast('削除しました');
 }
