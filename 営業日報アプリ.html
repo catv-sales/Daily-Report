@@ -157,7 +157,8 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
 .seg button { padding: 7px 16px; font-size: 13px; border: none; background: var(--surface); color: var(--muted); cursor: pointer; font-family: inherit; }
 .seg button.active { background: var(--accent); color: #fff; font-weight: 500; }
 .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
-.scard { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
+.scard { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.scard:hover { background: var(--accent-lt); border-color: var(--accent); }
 .scard .num { font-size: 18px; font-weight: 600; margin-top: 2px; }
 .scard .lbl { font-size: 10px; color: var(--muted); line-height: 1.3; }
 .at-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 10px; }
@@ -177,6 +178,14 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
 .empty-msg { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 13px; }
 
 /* ── Toast ── */
+/* ── 詳細モーダル ── */
+#detail-modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: flex-end; justify-content: center; z-index: 300; padding: 12px; }
+#detail-modal-bg.open { display: flex; }
+#detail-modal { background: var(--surface); width: 100%; max-width: 600px; border-radius: var(--radius) var(--radius) 0 0; max-height: 85vh; overflow-y: auto; padding: 16px; padding-bottom: calc(16px + var(--safe-b)); }
+@media (min-width: 480px) { #detail-modal-bg { align-items: center; } #detail-modal { border-radius: var(--radius) !important; } }
+#detail-modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+#detail-modal .close-btn { font-size: 20px; cursor: pointer; color: var(--muted); background: none; border: none; padding: 0 4px; }
+
 #toast { position: fixed; bottom: calc(20px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1A1A; color: #fff; font-size: 13px; padding: 9px 18px; border-radius: 20px; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 400; white-space: nowrap; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -472,6 +481,14 @@ html, body { height: 100%; background: var(--bg); font-family: 'Hiragino Sans', 
 
 <div id="toast"></div>
 
+<!-- 詳細モーダル -->
+<div id="detail-modal-bg">
+  <div id="detail-modal">
+    <h3 id="detail-title">詳細 <button class="close-btn" onclick="closeDetailModal()">×</button></h3>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
 <!-- Firebase SDK -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -509,7 +526,7 @@ const ALL_SERVICES = [
   'TEL(CP)','TEL(CL)'
 ];
 const TEAMS = [
-  { name: '茨城チーム', members: ['大塚','落合','黒子','阿久津'] },
+  { name: '茨城チーム', members: ['大塚','落合','松本','黒子','阿久津'] },
   { name: '栃木・群馬チーム', members: ['金井','中新井','野口'] },
 ];
 
@@ -932,7 +949,7 @@ function renderAggr(type) {
   if (mode === 'all') {
     const { c, total, rc } = calcStats(list);
     // 全体サマリー
-    let allHtml = renderStatCards(c, total) + renderStatusTable(c, total) + renderResultTable(rc);
+    let allHtml = renderStatCards(c, total, list) + renderStatusTable(c, total) + renderResultTable(rc, list);
     // チーム別サマリー
     allHtml += '<div style="font-size:13px;font-weight:600;margin:12px 0 6px">チーム別</div>';
     allHtml += renderStaffTable(list);
@@ -946,11 +963,12 @@ function renderAggr(type) {
 function splitLabel(label) {
   return label.replace('【', '<br>【');
 }
-function renderStatCards(c, total) {
+function renderStatCards(c, total, list) {
   let h = '<div class="stat-grid">';
-  h += `<div class="scard"><div class="lbl">総行動<br>数</div><div class="num">${total}</div></div>`;
+  h += `<div class="scard" onclick="showDetailModal(0,${JSON.stringify(list).replace(/"/g,'&quot;')})"><div class="lbl">訪問<br>数</div><div class="num">${total}</div></div>`;
   [[1,'#639922'],[2,'#378ADD'],[3,'#EF9F27'],[4,'#E24B4A']].forEach(([s, col]) => {
-    h += `<div class="scard"><div class="lbl">${splitLabel(STATUS_LABEL[s])}</div><div class="num" style="color:${col}">${c[s]||0}</div></div>`;
+    const filtered = list.filter(e => e.status === s);
+    h += `<div class="scard" onclick="showDetailModal(${s},${JSON.stringify(filtered).replace(/"/g,'&quot;')})"><div class="lbl">${splitLabel(STATUS_LABEL[s])}</div><div class="num" style="color:${col}">${c[s]||0}</div></div>`;
   });
   h += '</div>'; return h;
 }
@@ -966,14 +984,20 @@ function renderStatusTable(c, total) {
   h += '</tbody></table></div>'; return h;
 }
 
-function renderResultTable(rc) {
+function renderResultTable(rc, list) {
   const sorted = Object.entries(rc).sort((a,b) => b[1]-a[1]);
   if (!sorted.length) return '';
   const mx = sorted[0][1];
   let h = '<div class="at-card"><p class="at-card-title">結果集計</p><table class="at"><thead><tr><th>項目</th><th>件数</th><th></th></tr></thead><tbody>';
   sorted.forEach(([k,v]) => {
     const pct = mx ? Math.round(v/mx*100) : 0;
-    h += `<tr><td>${k}</td><td>${v}</td><td><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:#1558A8"></div></div></td></tr>`;
+    const filtered = (list||[]).filter(e => e.results && e.results.includes(k));
+    const filteredJson = JSON.stringify(filtered).replace(/"/g,'&quot;');
+    h += `<tr style="cursor:pointer" onclick="showDetailModal('result_${k}',${filteredJson})">
+      <td style="color:var(--accent);text-decoration:underline">${k}</td>
+      <td>${v}</td>
+      <td><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:#1558A8"></div></div></td>
+    </tr>`;
   });
   h += '</tbody></table></div>'; return h;
 }
@@ -1072,7 +1096,7 @@ function downloadExcel(type) {
   const byStaff2 = {};
   STAFF.forEach(s => { byStaff2[s] = []; });
   list.forEach(e => { if (e.staff && byStaff2[e.staff]) byStaff2[e.staff].push(e); });
-  const summaryHeader = ['チーム','スタッフ','総行動数','成約【対応完了】','一部成約【再訪予定】','今回成約なし【再訪予定】','成約なし【NG】', ...ALL_SERVICES];
+  const summaryHeader = ['チーム','スタッフ','訪問数','成約【対応完了】','一部成約【再訪予定】','今回成約なし【再訪予定】','成約なし【NG】', ...ALL_SERVICES];
   const summary = [summaryHeader];
   TEAMS.forEach(team => {
     team.members.forEach(name => {
@@ -1125,7 +1149,46 @@ function onStatusChange() {
   if (!show) document.getElementById('f-revisit').value = '';
 }
 
+// ── 詳細モーダル ──
+function showDetailModal(statusFilter, list) {
+  const title = typeof statusFilter === 'string' && statusFilter.startsWith('result_')
+    ? statusFilter.replace('result_', '') + ' 一覧'
+    : statusFilter === 0 ? '訪問数 一覧' : STATUS_LABEL[statusFilter] + ' 一覧';
+  document.getElementById('detail-title').innerHTML = title + ' <button class="close-btn" onclick="closeDetailModal()">×</button>';
+
+  if (!list || list.length === 0) {
+    document.getElementById('detail-content').innerHTML = '<p style="text-align:center;color:var(--muted);padding:2rem">データがありません</p>';
+    document.getElementById('detail-modal-bg').classList.add('open');
+    return;
+  }
+
+  let h = '<div style="overflow-x:auto"><table class="at" style="width:100%;min-width:400px">';
+  h += '<thead><tr><th class="th-left">担当者</th><th>日付</th><th>エリア</th><th>区分</th><th>番号</th><th>結果</th><th>備考</th></tr></thead><tbody>';
+  list.sort((a,b) => (a.date||'') < (b.date||'') ? -1 : 1).forEach(e => {
+    const results = (e.results||[]).join('・');
+    const kubunShort = (e.kubun||'').replace('アップセル','UP').replace('(アポ有)','有').replace('(アポ無・直訪)','無');
+    h += `<tr>
+      <td class="td-left">${e.staff||''}</td>
+      <td>${e.date||''}</td>
+      <td style="font-size:11px">${e.area||''}</td>
+      <td style="font-size:11px">${kubunShort}</td>
+      <td>${e.num||''}</td>
+      <td style="font-size:11px">${results}</td>
+      <td style="font-size:11px">${e.memo||''}</td>
+    </tr>`;
+  });
+  h += '</tbody></table></div>';
+  document.getElementById('detail-content').innerHTML = h;
+  document.getElementById('detail-modal-bg').classList.add('open');
+}
+function closeDetailModal() {
+  document.getElementById('detail-modal-bg').classList.remove('open');
+}
+
 // ── モーダル外タップで閉じる ──
+document.getElementById('detail-modal-bg').addEventListener('click', function(e) {
+  if (e.target === this) closeDetailModal();
+});
 document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
