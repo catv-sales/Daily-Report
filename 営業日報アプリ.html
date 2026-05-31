@@ -1179,7 +1179,7 @@ function renderRevisitList() {
 
   // ステータスが再訪予定のデータを抽出（再訪予定日なしもOK）
   let list = Object.values(entries).filter(e =>
-    e && !e.deleted && (e.status === 2 || e.status === 3)
+    e && !e.deleted && (parseInt(e.status) === 2 || parseInt(e.status) === 3)
   );
 
   // スタッフフィルター
@@ -1226,7 +1226,7 @@ function renderRevisitList() {
       <td style="white-space:nowrap">${e.staff||''}</td>
       <td>${e.num||''}</td>
       <td style="font-size:11px">${e.area||''}</td>
-      <td style="font-size:11px"><span class="badge b${e.status}">${STATUS_LABEL[e.status]||''}</span></td>
+      <td style="font-size:11px"><span class="badge b${parseInt(e.status)}">${STATUS_LABEL[parseInt(e.status)]||''}</span></td>
       <td style="font-size:11px">${e.memo||''}</td>
     </tr>`;
   });
